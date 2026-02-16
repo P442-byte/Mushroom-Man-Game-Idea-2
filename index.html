@@ -1,205 +1,210 @@
 <!DOCTYPE html>
 <html lang="en-us">
-  <head>
-    <meta charset="utf-8">
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Unity Web Player | Mishi</title>
-    <link rel="shortcut icon" href="TemplateData/favicon.ico">
-    <link rel="stylesheet" href="TemplateData/style.css">
-    <style>
-      #fullscreen-button {
-        display: none; /* Only show on desktop */
-        position: absolute;
-        bottom: 10px;
-        right: 10px;
-        padding: 10px 20px;
-        font-size: 16px;
-        background-color: rgba(0, 0, 0, 0.7);
-        color: white;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-        z-index: 1000;
-      }
 
-      #fullscreen-button:hover {
-        background-color: rgba(0, 0, 0, 0.9);
-      }
-    </style>
-  </head>
-  <body>
-    <div id="unity-container" class="unity-desktop" style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
-      <canvas id="unity-canvas" width="100dvw" height="100dvh" tabindex="-1" style="display: none;"></canvas>
-      <div id="unity-loading-bar" style="display: none;">
-        <div id="unity-logo"></div>
-        <div id="unity-progress-bar-empty">
-          <div id="unity-progress-bar-full"></div>
-        </div>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <title>Unity Web Player | Mishi</title>
+  <link rel="shortcut icon" href="TemplateData/favicon.ico">
+  <link rel="stylesheet" href="TemplateData/style.css">
+  <style>
+    #fullscreen-button {
+      display: none;
+      /* Only show on desktop */
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      padding: 10px 20px;
+      font-size: 16px;
+      background-color: rgba(0, 0, 0, 0.7);
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      z-index: 1000;
+    }
+
+    #fullscreen-button:hover {
+      background-color: rgba(0, 0, 0, 0.9);
+    }
+  </style>
+</head>
+
+<body>
+  <div id="unity-container" class="unity-desktop"
+    style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+    <canvas id="unity-canvas" width="100dvw" height="100dvh" tabindex="-1" style="display: none;"></canvas>
+    <div id="unity-loading-bar" style="display: none;">
+      <div id="unity-logo"></div>
+      <div id="unity-progress-bar-empty">
+        <div id="unity-progress-bar-full"></div>
       </div>
-      <div id="unity-warning"></div>
-      <button id="start-button" style="display: none; padding: 15px 30px; font-size: 18px;">Play Game</button>
-      <button id="fullscreen-button">Fullscreen</button>
     </div>
+    <div id="unity-warning"></div>
+    <button id="start-button" style="display: none; padding: 15px 30px; font-size: 18px;">Play Game</button>
+    <button id="fullscreen-button">Fullscreen</button>
+  </div>
 
-    <script>
-      const canvas = document.querySelector("#unity-canvas");
-      const startButton = document.querySelector("#start-button");
-      const fullscreenButton = document.querySelector("#fullscreen-button");
-      let unityInstance = null; // Track the Unity instance
+  <script>
+    const canvas = document.querySelector("#unity-canvas");
+    const startButton = document.querySelector("#start-button");
+    const fullscreenButton = document.querySelector("#fullscreen-button");
+    let unityInstance = null; // Track the Unity instance
 
-      function unityShowBanner(msg, type) {
-        const warningBanner = document.querySelector("#unity-warning");
-        function updateBannerVisibility() {
-          warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
-        }
-        const div = document.createElement('div');
-        div.innerHTML = msg;
-        warningBanner.appendChild(div);
-        if (type === 'error') div.style = 'background: red; padding: 10px;';
-        else {
-          if (type === 'warning') div.style = 'background: yellow; padding: 10px;';
-          setTimeout(() => {
-            warningBanner.removeChild(div);
-            updateBannerVisibility();
-          }, 5000);
-        }
-        updateBannerVisibility();
+    function unityShowBanner(msg, type) {
+      const warningBanner = document.querySelector("#unity-warning");
+      function updateBannerVisibility() {
+        warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
       }
-
-      const buildUrl = "Build";
-      const loaderUrl = buildUrl + "/Mish_Quest_test.loader.js";
-      const config = {
-        arguments: [],
-        dataUrl: buildUrl + "/Mish_Quest_test.data",
-        frameworkUrl: buildUrl + "/Mish_Quest_test.framework.js",
-        codeUrl: buildUrl + "/Mish_Quest_test.wasm",
-        streamingAssetsUrl: "StreamingAssets",
-        companyName: "DefaultCompany",
-        productName: "Mishi",
-        productVersion: "",
-        showBanner: unityShowBanner,
-      };
-
-      function setupForMobile() {
-        const meta = document.createElement('meta');
-        meta.name = 'viewport';
-        meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
-        document.head.appendChild(meta);
-
-        document.querySelector("#unity-container").className = "unity-mobile";
-        canvas.className = "unity-mobile";
-        startButton.style.display = "block";
-
-        startButton.addEventListener("click", async () => {
-          try {
-            // Clean up the previous Unity instance if it exists
-            if (unityInstance) {
-              await unityInstance.Quit();
-              unityInstance = null;
-            }
-
-            // Request fullscreen
-            if (canvas.requestFullscreen) {
-              await canvas.requestFullscreen();
-            } else if (canvas.webkitRequestFullscreen) {
-              await canvas.webkitRequestFullscreen();
-            }
-
-            // Lock orientation to landscape
-            if (screen.orientation && screen.orientation.lock) {
-              try {
-                await screen.orientation.lock("landscape");
-              } catch (err) {
-                console.warn("Orientation lock not supported:", err.message);
-              }
-            }
-
-            // Hide the play button and show the canvas
-            startButton.style.display = "none";
-            canvas.style.display = "block";
-            document.querySelector("#unity-loading-bar").style.display = "block";
-
-            // Add event listener for fullscreen exit
-            document.addEventListener("fullscreenchange", handleFullscreenExit);
-            document.addEventListener("webkitfullscreenchange", handleFullscreenExit);
-
-            const script = document.createElement("script");
-            script.src = loaderUrl;
-            script.onload = () => {
-              createUnityInstance(canvas, config, (progress) => {
-                document.querySelector("#unity-progress-bar-full").style.width = 100 * progress + "%";
-              }).then((instance) => {
-                unityInstance = instance; // Save the new Unity instance
-                document.querySelector("#unity-loading-bar").style.display = "none";
-              }).catch((message) => {
-                alert(message);
-              });
-            };
-            document.body.appendChild(script);
-          } catch (error) {
-            alert("Error entering fullscreen: " + error.message);
-          }
-        });
+      const div = document.createElement('div');
+      div.innerHTML = msg;
+      warningBanner.appendChild(div);
+      if (type === 'error') div.style = 'background: red; padding: 10px;';
+      else {
+        if (type === 'warning') div.style = 'background: yellow; padding: 10px;';
+        setTimeout(() => {
+          warningBanner.removeChild(div);
+          updateBannerVisibility();
+        }, 5000);
       }
+      updateBannerVisibility();
+    }
 
-      function handleFullscreenExit() {
-        if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-          // Exit fullscreen: revert to initial state
+    const buildUrl = "Build";
+    const loaderUrl = buildUrl + "/mushroom_game_web_build.loader.js";
+    const config = {
+      arguments: [],
+      dataUrl: buildUrl + "/mushroom_game_web_build.data",
+      frameworkUrl: buildUrl + "/mushroom_game_web_build.framework.js",
+      codeUrl: buildUrl + "/mushroom_game_web_build.wasm",
+      streamingAssetsUrl: "StreamingAssets",
+      companyName: "DefaultCompany",
+      productName: "Mishi",
+      productVersion: "",
+      showBanner: unityShowBanner,
+    };
+
+    function setupForMobile() {
+      const meta = document.createElement('meta');
+      meta.name = 'viewport';
+      meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
+      document.head.appendChild(meta);
+
+      document.querySelector("#unity-container").className = "unity-mobile";
+      canvas.className = "unity-mobile";
+      startButton.style.display = "block";
+
+      startButton.addEventListener("click", async () => {
+        try {
+          // Clean up the previous Unity instance if it exists
           if (unityInstance) {
-            unityInstance.Quit().then(() => {
-              unityInstance = null; // Clean up the Unity instance
-              canvas.style.display = "none";
-              document.querySelector("#unity-loading-bar").style.display = "none";
-              startButton.style.display = "block";
-            });
+            await unityInstance.Quit();
+            unityInstance = null;
           }
+
+          // Request fullscreen
+          if (canvas.requestFullscreen) {
+            await canvas.requestFullscreen();
+          } else if (canvas.webkitRequestFullscreen) {
+            await canvas.webkitRequestFullscreen();
+          }
+
+          // Lock orientation to landscape
+          if (screen.orientation && screen.orientation.lock) {
+            try {
+              await screen.orientation.lock("landscape");
+            } catch (err) {
+              console.warn("Orientation lock not supported:", err.message);
+            }
+          }
+
+          // Hide the play button and show the canvas
+          startButton.style.display = "none";
+          canvas.style.display = "block";
+          document.querySelector("#unity-loading-bar").style.display = "block";
+
+          // Add event listener for fullscreen exit
+          document.addEventListener("fullscreenchange", handleFullscreenExit);
+          document.addEventListener("webkitfullscreenchange", handleFullscreenExit);
+
+          const script = document.createElement("script");
+          script.src = loaderUrl;
+          script.onload = () => {
+            createUnityInstance(canvas, config, (progress) => {
+              document.querySelector("#unity-progress-bar-full").style.width = 100 * progress + "%";
+            }).then((instance) => {
+              unityInstance = instance; // Save the new Unity instance
+              document.querySelector("#unity-loading-bar").style.display = "none";
+            }).catch((message) => {
+              alert(message);
+            });
+          };
+          document.body.appendChild(script);
+        } catch (error) {
+          alert("Error entering fullscreen: " + error.message);
+        }
+      });
+    }
+
+    function handleFullscreenExit() {
+      if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+        // Exit fullscreen: revert to initial state
+        if (unityInstance) {
+          unityInstance.Quit().then(() => {
+            unityInstance = null; // Clean up the Unity instance
+            canvas.style.display = "none";
+            document.querySelector("#unity-loading-bar").style.display = "none";
+            startButton.style.display = "block";
+          });
         }
       }
+    }
 
-      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-        setupForMobile();
-      } else {
-        canvas.style.display = "block";
-        document.querySelector("#unity-loading-bar").style.display = "block";
-        fullscreenButton.style.display = "block"; // Show fullscreen button on desktop
+    if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+      setupForMobile();
+    } else {
+      canvas.style.display = "block";
+      document.querySelector("#unity-loading-bar").style.display = "block";
+      fullscreenButton.style.display = "block"; // Show fullscreen button on desktop
 
-        canvas.style.width = "100dvw";
-        canvas.style.height = "100dvh";
+      canvas.style.width = "100dvw";
+      canvas.style.height = "100dvh";
 
-        const script = document.createElement("script");
-        script.src = loaderUrl;
-        script.onload = () => {
-          createUnityInstance(canvas, config, (progress) => {
-            document.querySelector("#unity-progress-bar-full").style.width = 100 * progress + "%";
-          }).then((instance) => {
-            unityInstance = instance;
-            document.querySelector("#unity-loading-bar").style.display = "none";
+      const script = document.createElement("script");
+      script.src = loaderUrl;
+      script.onload = () => {
+        createUnityInstance(canvas, config, (progress) => {
+          document.querySelector("#unity-progress-bar-full").style.width = 100 * progress + "%";
+        }).then((instance) => {
+          unityInstance = instance;
+          document.querySelector("#unity-loading-bar").style.display = "none";
 
-            fullscreenButton.addEventListener("click", async () => {
-              if (!document.fullscreenElement) {
-                try {
-                  if (canvas.requestFullscreen) {
-                    await canvas.requestFullscreen();
-                  }
-                } catch (err) {
-                  console.warn("Fullscreen request failed:", err.message);
+          fullscreenButton.addEventListener("click", async () => {
+            if (!document.fullscreenElement) {
+              try {
+                if (canvas.requestFullscreen) {
+                  await canvas.requestFullscreen();
                 }
-              } else {
-                try {
-                  if (document.exitFullscreen) {
-                    await document.exitFullscreen();
-                  }
-                } catch (err) {
-                  console.warn("Exiting fullscreen failed:", err.message);
-                }
+              } catch (err) {
+                console.warn("Fullscreen request failed:", err.message);
               }
-            });
-          }).catch((message) => {
-            alert(message);
+            } else {
+              try {
+                if (document.exitFullscreen) {
+                  await document.exitFullscreen();
+                }
+              } catch (err) {
+                console.warn("Exiting fullscreen failed:", err.message);
+              }
+            }
           });
-        };
-        document.body.appendChild(script);
-      }
-    </script>
-  </body>
+        }).catch((message) => {
+          alert(message);
+        });
+      };
+      document.body.appendChild(script);
+    }
+  </script>
+</body>
+
 </html>
